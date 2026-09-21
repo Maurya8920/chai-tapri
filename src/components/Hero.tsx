@@ -42,9 +42,9 @@ export const Hero: React.FC<HeroProps> = ({
       <TopNav onOpenSupport={onOpenSupport} />
 
       {/* Hero Center Content Container */}
-      <main className="absolute inset-0 z-10 flex flex-col items-center justify-between pt-14 pb-3 sm:pt-20 sm:pb-6 px-3 sm:px-6 pointer-events-none">
+      <main className="absolute inset-0 z-10 flex flex-col items-center justify-between pt-14 pb-3 sm:pt-20 sm:pb-6 px-0 sm:px-6 pointer-events-none min-w-0">
         {/* Giant White Bold Devanagari Title Display */}
-        <div className="pointer-events-auto text-center mt-6 xs:mt-8 sm:mt-0 sm:mb-1">
+        <div className="pointer-events-auto text-center mt-6 xs:mt-8 sm:mt-0 sm:mb-1 px-3 sm:px-0 min-w-0">
           <h1 className="font-hindi text-6xl xs:text-7xl sm:text-8xl md:text-9xl lg:text-[9.5rem] font-extrabold tracking-wide text-white leading-[0.88] drop-shadow-[0_12px_35px_rgba(0,0,0,0.95)]">
             चाय<br />टपरी
           </h1>
@@ -66,9 +66,9 @@ export const Hero: React.FC<HeroProps> = ({
         </div>
 
         {/* Player & Bottom Controls Stack */}
-        <div className="w-full max-w-md xs:max-w-lg sm:max-w-2xl flex flex-col items-center gap-2 sm:gap-3 mt-auto mb-2 sm:my-auto">
+        <div className="w-full max-w-md xs:max-w-lg sm:max-w-2xl flex flex-col items-center gap-2 sm:gap-3 mt-auto mb-2 sm:my-auto min-w-0">
           {/* Centered Row of 2 Pills: "Baarish?" and "WhatsApp Share" */}
-          <div className="pointer-events-auto flex items-center justify-center gap-2.5 flex-nowrap max-w-full overflow-x-auto no-scrollbar py-1 px-1">
+          <div className="pointer-events-auto flex items-center justify-center gap-2.5 flex-nowrap max-w-full overflow-x-auto no-scrollbar py-1 px-3 sm:px-1">
             {/* 1. Baarish toggle: muted dark-blue look when active */}
             <button
               onClick={onToggleRain}

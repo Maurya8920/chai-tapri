@@ -99,7 +99,7 @@ export const PlayerBar: React.FC = () => {
 
   return (
     <section
-      className="music-player pointer-events-auto select-none w-full"
+      className="music-player pointer-events-auto select-none"
       aria-label="Chai Tapri 90s Radio Music Player"
     >
       {/* Spinning Circular Vinyl Cover Art - stops in place on pause */}
@@ -119,39 +119,37 @@ export const PlayerBar: React.FC = () => {
         <span className="music-cover-hole" aria-hidden="true" />
       </button>
 
-      {/* Song Metadata & Seek Bar */}
-      <div className="track-block">
-        <div className="track-top">
-          <div className="track-name font-semibold" title={titleText}>
-            {titleText}
-          </div>
+      {/* Song Metadata (Title and Credits) */}
+      <div className="track-meta">
+        <div className="track-name font-semibold" title={titleText}>
+          {titleText}
         </div>
-        <p className="station text-amber-200/75 text-xs font-mono tracking-wide">
+        <p className="station font-mono tracking-wide">
           {creditsText}
         </p>
-
-        {/* Progress row */}
-        <div className="progress-row">
-          <span className="w-8 text-left">{formatTime(displayCurrent)}</span>
-          <div
-            className="progress"
-            onClick={handleProgressBarClick}
-            role="slider"
-            aria-label="Track progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(pct)}
-            tabIndex={0}
-          >
-            <div className="progress-fill" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="w-8 text-right">{formatTime(duration)}</span>
-        </div>
       </div>
 
-      {/* Right-aligned Player Actions: Prev (44px), Play (52px), Next (44px), Speaker (44px) */}
+      {/* Progress row */}
+      <div className="progress-row">
+        <span className="w-8 text-left shrink-0">{formatTime(displayCurrent)}</span>
+        <div
+          className="progress"
+          onClick={handleProgressBarClick}
+          role="slider"
+          aria-label="Track progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pct)}
+          tabIndex={0}
+        >
+          <div className="progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="w-8 text-right shrink-0">{formatTime(duration)}</span>
+      </div>
+
+      {/* Right-aligned Player Actions: Prev (40px/44px), Play (52px), Next (40px/44px), Speaker (40px/44px) */}
       <div className="player-actions">
-        {/* Prev Button (44px, round dark, white ◀ triangle) */}
+        {/* Prev Button */}
         <button
           onClick={prevTrack}
           className="player-btn-dark"
@@ -159,12 +157,12 @@ export const PlayerBar: React.FC = () => {
           aria-label="Previous song"
           title="Previous song (←)"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white shrink-0" aria-hidden="true">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white shrink-0" aria-hidden="true">
             <polygon points="17,5 7,12 17,19" fill="white" />
           </svg>
         </button>
 
-        {/* Play / Pause Button (52px, amber round button, ▶ when paused, ‖ when playing) */}
+        {/* Play / Pause Button (52px, amber round button) */}
         <button
           onClick={togglePlay}
           className="player-btn-play"
@@ -184,7 +182,7 @@ export const PlayerBar: React.FC = () => {
           )}
         </button>
 
-        {/* Next Button (44px, round dark, white ▶ triangle) */}
+        {/* Next Button */}
         <button
           onClick={nextTrack}
           className="player-btn-dark"
@@ -192,12 +190,12 @@ export const PlayerBar: React.FC = () => {
           aria-label="Next song"
           title="Next song (→)"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white shrink-0" aria-hidden="true">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white shrink-0" aria-hidden="true">
             <polygon points="7,5 17,12 7,19" fill="white" />
           </svg>
         </button>
 
-        {/* Volume / Speaker Button with Popover (44px) */}
+        {/* Volume / Speaker Button with Popover */}
         <div className="relative flex items-center justify-center">
           {isVolumeOpen && (
             <div
@@ -234,9 +232,9 @@ export const PlayerBar: React.FC = () => {
             title={isMuted ? 'Unmute' : isVolumeOpen ? 'Mute' : 'Volume'}
           >
             {isMuted || volume === 0 ? (
-              <VolumeX className="w-5 h-5 text-red-400 shrink-0" />
+              <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 shrink-0" />
             ) : (
-              <Volume2 className="w-5 h-5 text-white shrink-0" />
+              <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-white shrink-0" />
             )}
           </button>
         </div>

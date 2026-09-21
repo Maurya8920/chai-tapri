@@ -121,6 +121,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const progressTimerRef = useRef<number | null>(null);
   const isApiLoadedRef = useRef<boolean>(false);
   const isCheckingCompilationRef = useRef<boolean>(false);
+  const userInitiatedPauseRef = useRef<boolean>(false);
+  const autoResumeTimerRef = useRef<number | null>(null);
 
   const playlistIdsRef = useRef<string[]>(playlistIds);
   const currentIndexRef = useRef<number>(currentIndex);
@@ -132,6 +134,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
+
 
   // Synchronous metadata resolver with 7-day localStorage cache
   const getSongMeta = useCallback((id: string): { title: string; author: string } => {
@@ -270,6 +273,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const list = playlistIdsRef.current;
     if (list.length === 0) return;
     const clamped = Math.max(0, Math.min(index, list.length - 1));
+    userInitiatedPauseRef.current = false;
+    if (autoResumeTimerRef.current) {
+      clearTimeout(autoResumeTimerRef.current);
+      autoResumeTimerRef.current = null;
+    }
     setCurrentIndex(clamped);
     setCurrentTime(0);
     setDuration(0);
@@ -288,6 +296,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Next Track: cycles sequentially 0 ... N-1, wraps at N
   const nextTrackInternal = useCallback(() => {
+    userInitiatedPauseRef.current = false;
     const list = playlistIdsRef.current;
     if (list.length === 0) return;
     const nextIdx = (currentIndexRef.current + 1) % list.length;
@@ -296,6 +305,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Previous Track
   const prevTrackInternal = useCallback(() => {
+    userInitiatedPauseRef.current = false;
     if (currentTime > 4 && playerRef.current) {
       playerRef.current.seekTo(0, true);
       setCurrentTime(0);
@@ -427,6 +437,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (event.data === window.YT.PlayerState.CUED || event.data === 5) {
               pollPlaylistIds();
             } else if (event.data === window.YT.PlayerState.PLAYING) {
+              userInitiatedPauseRef.current = false;
+              if (autoResumeTimerRef.current) {
+                clearTimeout(autoResumeTimerRef.current);
+                autoResumeTimerRef.current = null;
+              }
               setIsPlaying(true);
               startProgress();
 
@@ -449,7 +464,27 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             } else if (event.data === window.YT.PlayerState.PAUSED) {
               setIsPlaying(false);
               stopProgress();
+
+              // Auto-resume: if the player fires PAUSED while document.hidden is true
+              // and the user did not press pause, call playVideo() once after 300 ms
+              if (autoResumeTimerRef.current) {
+                clearTimeout(autoResumeTimerRef.current);
+                autoResumeTimerRef.current = null;
+              }
+
+              if (document.hidden && !userInitiatedPauseRef.current) {
+                autoResumeTimerRef.current = window.setTimeout(() => {
+                  if (document.hidden && !userInitiatedPauseRef.current && playerRef.current) {
+                    try {
+                      playerRef.current.playVideo();
+                    } catch (e) {
+                      console.warn('Auto-resume failed:', e);
+                    }
+                  }
+                }, 300);
+              }
             } else if (event.data === window.YT.PlayerState.ENDED) {
+              userInitiatedPauseRef.current = false;
               // Next song only on ENDED
               nextTrackInternal();
             }
@@ -473,6 +508,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return () => {
       stopProgress();
+      if (autoResumeTimerRef.current) {
+        clearTimeout(autoResumeTimerRef.current);
+        autoResumeTimerRef.current = null;
+      }
     };
   }, [checkCompilationGuard, currentSong.title, nextTrackInternal, pollPlaylistIds, startProgress, stopProgress]);
 
@@ -480,6 +519,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!playerRef.current) return;
 
     if (!hasInteracted) {
+      userInitiatedPauseRef.current = false;
       setHasInteracted(true);
       const id = playlistIdsRef.current[currentIndexRef.current];
       if (id) {
@@ -495,8 +535,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     if (isPlaying) {
+      userInitiatedPauseRef.current = true;
+      if (autoResumeTimerRef.current) {
+        clearTimeout(autoResumeTimerRef.current);
+        autoResumeTimerRef.current = null;
+      }
       playerRef.current.pauseVideo();
     } else {
+      userInitiatedPauseRef.current = false;
       playerRef.current.playVideo();
     }
   }, [hasInteracted, isPlaying]);
@@ -557,34 +603,100 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [isMuted, volume]);
 
-  // Media Session API
+  // Media Session API: set title, artist ("Credits: channel"), artwork (thumbnail) and handlers for play, pause, previoustrack, nexttrack, seekto
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     try {
+      const channelName = currentSong.author || 'T-Series';
+      const artistText = `Credits: ${channelName}`;
+      const artworkUrl = currentSong.id
+        ? `https://i.ytimg.com/vi/${currentSong.id}/hqdefault.jpg`
+        : '/pwa-512x512.png';
+
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentSong.title,
-        artist: currentSong.author || 'Chai Tapri',
+        title: currentSong.title || '90s Bollywood Song',
+        artist: artistText,
         album: 'Chai Tapri 90s Radio',
         artwork: [
           {
-            src: currentSong.id
-              ? `https://i.ytimg.com/vi/${currentSong.id}/hqdefault.jpg`
-              : '/pwa-512x512.png',
+            src: artworkUrl,
             sizes: '480x360',
+            type: 'image/jpeg',
+          },
+          {
+            src: currentSong.id
+              ? `https://i.ytimg.com/vi/${currentSong.id}/mqdefault.jpg`
+              : '/pwa-192x192.png',
+            sizes: '320x180',
             type: 'image/jpeg',
           },
           { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
         ],
       });
-      navigator.mediaSession.setActionHandler('play', () => togglePlay());
-      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
-      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrackInternal());
-      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrackInternal());
+
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        userInitiatedPauseRef.current = false;
+        if (playerRef.current) {
+          try {
+            playerRef.current.playVideo();
+          } catch (e) {
+            togglePlay();
+          }
+        } else {
+          togglePlay();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        userInitiatedPauseRef.current = true;
+        if (autoResumeTimerRef.current) {
+          clearTimeout(autoResumeTimerRef.current);
+          autoResumeTimerRef.current = null;
+        }
+        if (playerRef.current) {
+          try {
+            playerRef.current.pauseVideo();
+          } catch (e) {
+            togglePlay();
+          }
+        } else {
+          togglePlay();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        userInitiatedPauseRef.current = false;
+        prevTrackInternal();
+      });
+
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        userInitiatedPauseRef.current = false;
+        nextTrackInternal();
+      });
+
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined && details.seekTime !== null) {
+          seekTo(details.seekTime);
+        }
+      });
+
+      if ('setPositionState' in navigator.mediaSession && duration > 0 && currentTime <= duration) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: duration,
+            playbackRate: 1,
+            position: Math.min(Math.max(0, currentTime), duration),
+          });
+        } catch (e) {
+          // ignore
+        }
+      }
     } catch (e) {
       // Ignore
     }
-  }, [currentSong, isPlaying, nextTrackInternal, prevTrackInternal, togglePlay]);
+  }, [currentSong, isPlaying, duration, currentTime, nextTrackInternal, prevTrackInternal, seekTo, togglePlay]);
 
   // Keyboard Shortcuts: Space = play/pause, Left = Prev song, Right = Next song
   useEffect(() => {
